@@ -1,41 +1,60 @@
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.*;
-
 import static java.lang.System.exit;
 
-
+/*
+*
+* K-Nearest Neighbour algorithm implementation
+* Created by Mark Kilonzi
+* Copyright 2017
+*
+* */
 public class TestMain {
 
-    private static int k;   // Number of nearest neighbours to be considered
-    private static ArrayList<String> list = new ArrayList<>();
-    private static ArrayList<ArrayList<Double>> convertedList = new ArrayList<>() ;
-    private static ArrayList<Double> randomList = new ArrayList<>();
-    private static List<Double> sortedList;
-    private static HashMap<Integer, Double> results = new HashMap<>();
+    private static int k;                                                               // Number of nearest neighbours to be considered
+    private static ArrayList<String> list = new ArrayList<>();                          // List of String created from file
+    private static ArrayList<SingleEntry> listObject = new ArrayList<>();               // List of Objects to store each line (dataset)
+    private static ArrayList<Double> randomList = new ArrayList<>();                    // List used to store random input dataset
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
 
-        importData();
-
-        convertToDouble();
-
-        getvalueofk();
-
-        randomizeInputSet();
-
-        findQueryDistances();
-
-        printSortedSquares();
-
-        selectKNeighbours();
-
+        TestMain test1 = new TestMain();                                                //Create a new object of TestMain and call respective methods
+        test1.importData();
+        test1.convertToDouble();
+        test1.getvalueofk();
+        test1.randomizeInputSet();
+        test1.findQueryInstances();
+        test1.selectKNeighbours();
+        test1.conductVoting();
     }
 
-    private static void importData() throws FileNotFoundException {
+    /*
+    * importData reads the chosen file
+    * reads line by line
+    * (delimited by '\n')
+    * and adds the file data to a list of type String
+    *
+    */
+    private void importData() throws Exception {
 
-        String FILE_NAME = "heart_data.txt";
+        System.out.println("\nChoose text file:\n");
+        System.out.println("1 - Heart Data");
+        System.out.println("2 - Diabetes Data\n");
+
+        Scanner reader = new Scanner(System.in);
+        int q = reader.nextInt();
+
+        String FILE_NAME;
+
+        if(q == 1){
+             FILE_NAME = "heart_data.txt";
+        }
+        else if(q == 2){
+             FILE_NAME = "diabetes_data.txt";
+        }
+        else {
+            throw new Exception("Invalid Input! Enter 1 or 2");
+        }
 
         System.out.println("\n\n\n<===================Initial List from file==================>\n\n");
 
@@ -50,8 +69,12 @@ public class TestMain {
         printStrings();
 
     }
-
-    private static void getvalueofk(){
+/*
+*
+* getvalueofk gets the number k from the user
+*
+* */
+    private void getvalueofk(){
 
         System.out.printf("\n\n\n Enter K (Number of nearest neighbours to be considered):\n");
         Scanner reader = new Scanner(System.in);
@@ -63,9 +86,16 @@ public class TestMain {
             exit(0);
         }
     }
+/*
+* convertToDouble loops through list,
+* gets a line at a time and splits it with a space " " delimiter
+* each element of each line is cast to a double
+*
+*A new list of double is formed which is passed as an object of type SingleEntry
+ * an arraylist of SingleEntries is then formed
+*/
 
-
-    private static void convertToDouble() {
+    private void convertToDouble() {
 
         System.out.println("\n\n\n<===================Text data imported to ArrayList============>\n\n");
 
@@ -78,107 +108,122 @@ public class TestMain {
           for (j = 0; j<splited.length; j++){
               arD.add(Double.parseDouble(splited[j]));
              }
-            convertedList.add(arD);
+            //convertedList.add(arD);
+            listObject.add(new SingleEntry(arD));
         }
         printConvertedList();
 
     }
 
-    private static void randomizeInputSet(){
+    private void randomizeInputSet(){
 
         int i,j;
 
-        for(i=0; i<convertedList.get(i).size(); i++){
+        for(i =0; i < listObject.get(i).originalValues.size(); i++ ){
 
             ArrayList<Double> temp = new ArrayList<>();
 
-            for(j=0; j<convertedList.size(); j++){
+            for (j=0; j<listObject.size(); j++){
 
-                double d = convertedList.get(j).get(i);
+                double d = listObject.get(j).originalValues.get(i);
                 temp.add(d);
             }
+
             Collections.shuffle(temp);
             randomList.add(temp.get(0));
         }
+
         randomList.remove(randomList.size()-1);
         printInputSet();
     }
 
-    private static void findQueryDistances(){
+    private void findQueryInstances(){
 
         int i,j;
 
-        for(i=0; i<convertedList.size(); i++){
+        for(i = 0; i < listObject.size(); i++){
 
-            double sum = 0;
+            for(j = 0; j < listObject.get(i).originalValues.size() - 1; j++){
 
-            for(j=0; j<convertedList.get(i).size()-1; j++){
-
-               sum += Math.pow(randomList.get(j) - convertedList.get(i).get(j), 2);
+                listObject.get(i).sum += Math.pow(randomList.get(j) - listObject.get(i).originalValues.get(j), 2);
             }
-
-            results.put(i, sum );
-            // squares.add(sum);
         }
+        System.out.println("<===================Square Differences========================>\n");
 
         printQueryDistances();
     }
 
-    private static List<Double> sortHashMapByValue(HashMap <Integer, Double> hm){
+    private void selectKNeighbours(){
 
-        List<Double> temp = new ArrayList<Double>( hm.values());
+        listObject.sort(SingleEntry.singleEntryComparator);
 
-        temp.sort(Double::compareTo);
+        System.out.println("\n\n<===================After Sorting========================>\n");
 
-        return temp;
+        printQueryDistances();
+
+        listObject.subList(k, listObject.size()).clear();
+
+        System.out.println("\n\n<===================After taking first k elements========================>\n");
+
+        printQueryWithDiseaseState();
+
     }
 
-    private static void  selectKNeighbours(){
+    private void conductVoting(){
 
-        sortedList.subList(k, sortedList.size()).clear();
+        int positive_counter = 0;
+        int negative_counter = 0;
 
-        System.out.println("\n\n<===================Nearest K Squares========================>\n");
+       for(SingleEntry se : listObject){
 
-        for(Double value : sortedList)
-            System.out.println(value);
+           if(se.diseaseState == SingleEntry.DiseaseState.NEGATIVE){
+
+               negative_counter++;
+           }
+           else if(se.diseaseState == SingleEntry.DiseaseState.POSITIVE){
+
+               positive_counter++;
+           }
+       }
+
+       if(Math.max(positive_counter, negative_counter) == positive_counter){
+
+           System.out.println("\n\n<===================PATIENT IS POSITIVE!========================>\n");
+
+       }else if(Math.max(positive_counter, negative_counter) == negative_counter){
+
+           System.out.println("\n\n<===================PATIENT IS NEGATIVE!========================>\n");
+
+       }
+
     }
 
-    private static void conductVoting(){
+    private  void printQueryWithDiseaseState(){
 
-        for(Double d : sortedList){
+        for(SingleEntry se : listObject){
 
+            System.out.println(se.sum +"    State:  " +se.diseaseState.toString());
+        }
+    }
+    private void printQueryDistances(){
+
+
+        for(SingleEntry se : listObject){
+
+            System.out.println(se.sum);
         }
     }
 
-    private static void printQueryDistances(){
 
-        System.out.println("\n<===================Square Differences========================>\n");
-
-        for(Map.Entry me : results.entrySet()){
-
-            System.out.println(me.getValue());
-        }
-    }
-
-    private static void printSortedSquares(){
-
-        System.out.println("\n<===================Sorted Square Differences========================>\n");
-
-
-        sortedList = sortHashMapByValue(results);
-
-        for(Double value : sortedList)
-            System.out.println(value);
-    }
-
-    private static void printInputSet(){
+    private void printInputSet(){
 
         System.out.println("\n<===================Random Input Set=========================>\n");
         System.out.println(randomList.toString());
+        System.out.println("\n\n");
     }
 
 
-    private static void printStrings(){
+    private void printStrings(){
 
         for(String s : list){
 
@@ -186,15 +231,12 @@ public class TestMain {
         }
     }
 
-    private static void printConvertedList() {
+    private  void printConvertedList() {
 
-        for(ArrayList<Double> arD : convertedList){
+       for(SingleEntry en : listObject){
 
-            for(Double d : arD){
-                System.out.print(d + " ");
-            }
-            System.out.println("");
-        }
+           System.out.println(en.originalValues);
+       }
 
     }
 
